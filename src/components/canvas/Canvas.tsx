@@ -1,28 +1,54 @@
-import { useState } from "react";
+import React, { RefObject } from "react";
 import { Layer, Stage } from "react-konva";
 import Shape from "../shape/Shape";
+import { useTypedSelector, useTypedDispatch } from "../../interfaces";
+import { IShapeProperties } from "../../interfaces";
+import Konva from "konva";
+import { addFigure } from "../../store/serviceReducer";
 
-const Canvas = ({ tool, stageRef }: any) => {
-  const [figures, setFigures] = useState<any>([]);
+interface ICanvasProps {
+  tool: string;
+  stageRef: RefObject<Konva.Stage>;
+}
 
-  const handleOnClick = (e: any) => {
+export interface IFigure extends IShapeProperties {
+  id: string;
+  x: number;
+  y: number;
+  html: string;
+  text: string;
+  type: string;
+}
+
+const Canvas: React.FC<ICanvasProps> = ({ tool, stageRef }) => {
+  const dispatch = useTypedDispatch();
+  const figures = useTypedSelector((state) => state.service.figures);
+
+  const shapeProperties = useTypedSelector(
+    (state) => state.service.shapeProperties
+  );
+  const shapeType = useTypedSelector((state) => state.service.shapeType);
+
+  const handleOnClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (tool === "cursor") return;
     const stage = e.target.getStage();
+    if (!stage) return;
+
     const stageOffset = stage.absolutePosition();
     const point = stage.getPointerPosition();
-    setFigures((prev: any) => [
-      ...prev,
-      {
-        id: Date.now().toString(36),
-        width: 100,
-        height: 100,
-        type: "rect",
-        x: point.x - stageOffset.x,
-        y: point.y - stageOffset.y,
-        html: "",
-        text: "",
-      },
-    ]);
+    if (!point) return;
+
+    const newFigure: IFigure = {
+      id: String(Math.floor(Math.random() * 1000000)),
+      type: shapeType,
+      ...shapeProperties,
+      x: point.x - stageOffset.x,
+      y: point.y - stageOffset.y,
+      html: "",
+      text: "",
+    };
+
+    dispatch(addFigure(newFigure));
   };
 
   return (
@@ -34,9 +60,15 @@ const Canvas = ({ tool, stageRef }: any) => {
       ref={stageRef}
     >
       <Layer>
-        {figures.map((figure: any, i: number) => {
-          return <Shape key={i} {...figure} stageRef={stageRef} tool={tool} />;
-        })}
+        {figures.map((figure) => (
+          <Shape
+            key={figure.id}
+            {...figure}
+            type={figure.type}
+            stageRef={stageRef}
+            tool={tool}
+          />
+        ))}
       </Layer>
     </Stage>
   );
